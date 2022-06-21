@@ -1,0 +1,9 @@
+[package]
+name = "tartaros-telegram"
+version = "0.1.0"
+authors = ["nyx69"]
+edition = "2021"
+
+[dependencies]
+axum = "0.5.6"
+tokio = { version = "1.18.2", features = ["full"] }
