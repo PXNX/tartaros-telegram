@@ -1,0 +1,2 @@
+[global.databases]
+dbrfga4kcr3c7i = { url = "postgres://mxmudojxjeleoq:797543d9f21e892eeebec825c00ec9f9718bc77d4e8e036d21b8762ac44f51e0@ec2-52-30-159-47.eu-west-1.compute.amazonaws.com:5432/dbrfga4kcr3c7i" }
