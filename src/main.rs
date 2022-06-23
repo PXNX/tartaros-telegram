@@ -1,12 +1,22 @@
 use std::net::SocketAddr;
 
-use axum::{Router, routing::get};
+use axum::{
+    http::StatusCode,
+    Json,
+    response::IntoResponse,
+    Router, routing::{get, post},
+};
+use serde::{Deserialize, Serialize};
 
 use tartaros_telegram::{establish_connection, report_user};
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
+    let conn = establish_connection();
+
+    let app = Router::new()
+        .route("/", get(root))
+        .route("/", post(post_user(&conn)));
 
     let port = std::env::var("PORT")
         .ok()
@@ -19,7 +29,11 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
-
-    let conn = establish_connection();
-    report_user(&conn, &12345, "test");
 }
+
+async fn root() -> &'static str {
+    "Hello, World!"
+}
+
+
+
