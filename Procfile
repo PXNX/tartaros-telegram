@@ -1,1 +1,1 @@
-web: ./target/release/tartaros-telegram
+web: ROCKET_PORT=$PORT ROCKET_KEEP_ALIVE=0 ./target/release/tartaros-telegram
