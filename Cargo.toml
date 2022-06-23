@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 diesel = "1.4.7"
+dotenv="0.7.1"
 
 [dependencies.rocket]
 version = "0.5.0-rc.1"
