@@ -1,7 +1,4 @@
-use rocket::{
-    response::status::{Created, NoContent, NotFound},
-    serde::json::Json,
-};
+use rocket::{Build, response::status::{Created, NoContent, NotFound}, Rocket, serde::json::Json};
 
 use diesel::prelude::*;
 
@@ -12,7 +9,8 @@ use tartaros_telegram::{
 };
 
 #[rocket::launch]
-fn rocket() -> _ {
+fn rocket() -> Rocket<Build> {
+    println!("hello there!");
     rocket::build()
         // State
         .attach(PgConnection::fairing())
