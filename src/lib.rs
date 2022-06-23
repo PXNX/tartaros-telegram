@@ -6,7 +6,7 @@ extern crate diesel;
 use rocket::serde::{Deserialize, Serialize};
 use rocket_sync_db_pools::database;
 
-#[database("db")]
+#[database("dbrfga4kcr3c7i")]
 pub struct PgConnection(diesel::PgConnection);
 
 #[derive(Serialize, Deserialize, Debug)]
