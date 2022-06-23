@@ -1,20 +1,20 @@
-use chrono::NaiveDateTime;
+use rocket::serde::{Deserialize, Serialize};
 
+use diesel::{AsChangeset, Insertable, Queryable};
 
-use serde::{Serialize, Deserialize};
-use super::schema::users;
+use crate::schema::users;
 
-#[derive(Queryable, Serialize, Deserialize,)]
+#[derive(Serialize, Queryable, Debug)]
+#[serde(crate = "rocket::serde")]
 pub struct User {
     pub id: i32,
-    pub creation_timestamp: NaiveDateTime,
     pub reported_message: String,
 }
 
-#[derive(Insertable,Serialize, Deserialize,)]
+#[derive(Deserialize, Insertable, Debug)]
+#[serde(crate = "rocket::serde")]
 #[table_name = "users"]
-pub struct NewUser<'a> {
-    pub id: &'a i32,
-    pub creation_timestamp: &'a NaiveDateTime,
-    pub reported_message: &'a str,
+pub struct NewUser {
+    pub id: i32,
+    pub reported_message: String,
 }

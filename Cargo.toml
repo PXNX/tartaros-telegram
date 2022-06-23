@@ -5,9 +5,12 @@ authors = ["nyx69"]
 edition = "2021"
 
 [dependencies]
-axum = "0.5.6"
-tokio = { version = "1.18.2", features = ["full"] }
-diesel = { version = "1.4.4", features = ["postgres", "chrono"] }
-dotenv = "0.15.0"
-serde = { version = "1.0", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
+diesel = "1.4.7"
+
+[dependencies.rocket]
+version = "0.5.0-rc.1"
+features = ["json"]
+
+[dependencies.rocket_sync_db_pools]
+version = "0.1.0-rc.1"
+features = ["diesel_postgres_pool"]
