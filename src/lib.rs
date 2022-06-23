@@ -1,8 +1,6 @@
 pub mod models;
 pub mod schema;
 
-use rocket::serde::{Deserialize, Serialize};
-
 #[macro_use]
 extern crate diesel;
 use rocket::serde::{Deserialize, Serialize};
