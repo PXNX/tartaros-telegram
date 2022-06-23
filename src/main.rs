@@ -2,6 +2,8 @@ use rocket::{
     response::status::{Created, NoContent, NotFound},
     serde::json::Json,
 };
+mod db_conn;
+use db_conn::{PgPool};
 
 use diesel::prelude::*;
 
@@ -16,7 +18,7 @@ fn rocket() -> _ {
     println!("hello there!");
     rocket::build()
         // State
-        .attach(PgConnection::fairing())
+        .manage(db_conn::establish_connection()) //here is where you pass the pool to Rocket state.
         // Routes
         .mount(
             "/users",
