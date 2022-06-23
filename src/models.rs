@@ -1,6 +1,6 @@
 use rocket::serde::{Deserialize, Serialize};
 
-use diesel::{AsChangeset, Insertable, Queryable};
+use diesel::{Insertable, Queryable};
 
 use crate::schema::users;
 
