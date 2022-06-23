@@ -18,7 +18,7 @@ fn rocket() -> _ {
     println!("hello there!");
     rocket::build()
         // State
-        .manage(db_conn::establish_connection()) //here is where you pass the pool to Rocket state.
+               .attach(PgConnection::fairing())
         // Routes
         .mount(
             "/users",
