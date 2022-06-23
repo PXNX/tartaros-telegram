@@ -13,6 +13,7 @@ use tartaros_telegram::{
 
 #[rocket::launch]
 fn rocket() -> _ {
+    println!("hello there!");
     rocket::build()
         // State
         .attach(PgConnection::fairing())
