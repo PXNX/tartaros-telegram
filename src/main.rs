@@ -2,9 +2,6 @@ use rocket::{
     response::status::{Created, NoContent, NotFound},
     serde::json::Json,
 };
-mod db_conn;
-use db_conn::{PgPool};
-
 use diesel::prelude::*;
 
 use tartaros_telegram::{

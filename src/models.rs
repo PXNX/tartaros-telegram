@@ -8,7 +8,7 @@ use crate::schema::users;
 #[serde(crate = "rocket::serde")]
 pub struct User {
     pub id: i32,
-    pub reported_message: String,
+    pub msg: String,
 }
 
 #[derive(Deserialize, Insertable, Debug)]
@@ -16,5 +16,5 @@ pub struct User {
 #[table_name = "users"]
 pub struct NewUser {
     pub id: i32,
-    pub reported_message: String,
+    pub msg: String,
 }
