@@ -8,7 +8,6 @@ use chrono::prelude::Utc;
 use diesel::prelude::*;
 use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
 use rocket::http::Status;
-//use rocket::outcome::Outcome;
 use rocket::request::{FromRequest, Outcome};
 
 use tartaros_telegram::{
@@ -16,9 +15,6 @@ use tartaros_telegram::{
     models::{NewUser, User},
     PgConnection, schema::users,
 };
-use tartaros_telegram::schema::users::{date, id, msg};
-
-//use rocket::route::Outcome;
 
 #[rocket::launch]
 fn rocket() -> _ {
@@ -64,17 +60,14 @@ async fn create(
     user: Json<NewUser>,
     token: Token,
 ) -> Result<Created<Json<User>>, Json<ApiError>> {
-    let newUser = User {
-        id: user.id,
-        msg: user.msg,
-        date: Utc::now().naive_utc(),
-    };
-
-
     connection
         .run(move |c| {
             diesel::insert_into(users::table)
-                .values(newUser)
+                .values(User {
+                    id: user.id,
+                    msg: String::from(&user.msg),
+                    date: Utc::now().naive_utc(),
+                })
                 .get_result(c)
         })
         .await
@@ -88,7 +81,7 @@ async fn create(
 
 
 #[rocket::delete("/<id>")]
-async fn destroy(connection: PgConnection, id: i32) -> Result<NoContent, NotFound<Json<ApiError>>> {
+async fn destroy(connection: PgConnection, id: i32, token: Token) -> Result<NoContent, NotFound<Json<ApiError>>> {
     connection
         .run(move |c| {
             let affected = diesel::delete(users::table.filter(users::id.eq(id)))
@@ -123,18 +116,17 @@ impl<'r> FromRequest<'r> for Token {
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let token = request.headers().get_one("token");
-        match token {
+        return match token {
             Some(token) => {
-                let actual = String::from("banane"); //env::var("HASH").expect("$HASH is not set");
+                let actual = env::var("HASH").expect("$HASH is not set");
 
                 if actual == token {
                     return Outcome::Success(Token(token.to_string()));
                 }
 
-
-                return Outcome::Failure((Status::Unauthorized, ApiTokenError::Invalid));
+                Outcome::Failure((Status::Unauthorized, ApiTokenError::Invalid))
             }
-            None => return Outcome::Failure((Status::Unauthorized, ApiTokenError::Missing)),
+            None => Outcome::Failure((Status::Unauthorized, ApiTokenError::Missing)),
         };
     }
 }

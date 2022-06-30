@@ -1,10 +1,11 @@
-pub mod models;
-pub mod schema;
-
 #[macro_use]
 extern crate diesel;
+
 use rocket::serde::{Deserialize, Serialize};
 use rocket_sync_db_pools::database;
+
+pub mod models;
+pub mod schema;
 
 #[database("db")]
 pub struct PgConnection(diesel::PgConnection);

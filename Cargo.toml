@@ -7,8 +7,7 @@ edition = "2021"
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 diesel = { version = "1.4.7", features = ["chrono"] }
-dotenv="0.7.1"
-
+dotenv = "0.7.1"
 
 [dependencies.rocket]
 version = "0.5.0-rc.1"
