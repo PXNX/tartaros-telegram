@@ -6,6 +6,10 @@ use std::env;
 use std::error::Error;
 use std::fmt::format;
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
+
+
 use chrono::prelude::Utc;
 use diesel::prelude::*;
 use dotenv::dotenv;
@@ -36,6 +40,38 @@ lazy_static! {
 }
 
 
+
+
+
+async fn bot() -> Result<(), Box<dyn Error>> {
+    dotenv().ok();
+
+    println!("aaauwwwuaa");
+
+
+
+
+    println!("aaauoooooooowwwuaa");
+
+ let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
+
+/*  let handler =  Update::filter_message().branch(dptree::endpoint(
+        |msg: Message| async move {
+            let previous = 55;
+            BOT.send_message(msg.chat.id, format!("I received {} messages in total.", previous))
+                .await?;
+            respond(())
+        },
+    )); */
+
+    Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
+
+
+    println!("aaaapppppa");
+    Ok(())
+}
+
+
 #[rocket::launch]
 async  fn rocket() -> _ {
     // pretty_env_logger::init();
@@ -49,23 +85,23 @@ async  fn rocket() -> _ {
     //  log::info!("Starting Rocket...");
 
 
+   tokio::spawn(async {
+    bot().await;
+  });
+
+
     println!("aaauuaa");
 
-    tokio::spawn(async {
-        let handler = dptree::entry()
-            .branch(Update::filter_callback_query().endpoint(callback_handler));
 
-        Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
-
-        println!("aaaapppppa");
-    });
 
     let rock =  rocket::build()
         .attach(PgConnection::fairing())
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
-        .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]) .launch()
-        .await;
+        .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
+
+    // .launch()
+    //         .await;
 
     println!("aaaaa");
 
@@ -217,7 +253,6 @@ impl<'r> FromRequest<'r> for Token {
 
 async fn callback_handler(
     q: CallbackQuery,
-    b: AutoSend<Bot>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(version) = q.data {
         let text = format!("You chose: {version}");
@@ -225,11 +260,11 @@ async fn callback_handler(
 
         match q.message {
             Some(Message { id, chat, .. }) => {
-                b.edit_message_text(chat.id, id, text).await?;
+                BOT.edit_message_text(chat.id, id, text).await?;
             }
             None => {
                 if let Some(id) = q.inline_message_id {
-                    b.edit_message_text_inline(id, text).await?;
+                    BOT.edit_message_text_inline(id, text).await?;
                 }
             }
         }
@@ -238,7 +273,7 @@ async fn callback_handler(
         log::info!("You chose: {}", version);
     }
 
-    Ok(())
+    Ok(()) //     respond(())
 }
 
 fn make_keyboard() -> InlineKeyboardMarkup {
