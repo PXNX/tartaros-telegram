@@ -1,13 +1,12 @@
 #[macro_use]
 extern crate diesel;
-
 extern crate dotenv;
 
-use dotenv::dotenv;
 use std::env;
 
 use chrono::prelude::Utc;
 use diesel::prelude::*;
+use dotenv::dotenv;
 use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
@@ -27,7 +26,7 @@ fn rocket() -> _ {
         // State
         .attach(PgConnection::fairing())
         // Routes
-        ,mount("/",  Redirect::to(uri!(hello: name, age)))
+        .mount("/", Redirect::to("https://github.com/PXNX/tartaros-telegram#readme"))
         .mount(
             "/users",
             rocket::routes![list, retrieve, create, destroy],
