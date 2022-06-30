@@ -11,6 +11,7 @@ use diesel::prelude::*;
 use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
+use rocket::response::Redirect;
 
 use tartaros_telegram::{
     ApiError,
@@ -26,6 +27,7 @@ fn rocket() -> _ {
         // State
         .attach(PgConnection::fairing())
         // Routes
+        ,mount("/",  Redirect::to(uri!(hello: name, age)))
         .mount(
             "/users",
             rocket::routes![list, retrieve, create, destroy],
