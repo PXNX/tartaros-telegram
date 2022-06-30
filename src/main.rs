@@ -9,8 +9,8 @@ use diesel::prelude::*;
 use dotenv::dotenv;
 use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
 use rocket::http::Status;
-use rocket::request::{FromRequest, Outcome};
 use rocket::response::Redirect;
+use rocket::request::{FromRequest, Outcome};
 
 use tartaros_telegram::{
     ApiError,
@@ -23,18 +23,21 @@ fn rocket() -> _ {
     println!("hello there!");
     dotenv().ok();
     rocket::build()
-        // State
         .attach(PgConnection::fairing())
-        // Routes
-        .mount("/", Redirect::to("https://github.com/PXNX/tartaros-telegram#readme"))
         .mount(
             "/users",
-            rocket::routes![list, retrieve, create, destroy],
+            rocket::routes![all_users, user_by_id, ban_user, unban_user],
         )
+        .mount("/", redirect_readme)
 }
 
 #[rocket::get("/")]
-async fn list(connection: PgConnection) -> Json<Vec<User>> {
+async fn redirect_readme() -> Redirect {
+    Redirect::to("https://github.com/PXNX/tartaros-telegram#readme")
+}
+
+#[rocket::get("/")]
+async fn all_users(connection: PgConnection) -> Json<Vec<User>> {
     connection
         .run(|c| users::table.load(c))
         .await
@@ -43,7 +46,7 @@ async fn list(connection: PgConnection) -> Json<Vec<User>> {
 }
 
 #[rocket::get("/<id>")]
-async fn retrieve(
+async fn user_by_id(
     connection: PgConnection,
     id: i32,
 ) -> Result<Json<User>, NotFound<Json<ApiError>>> {
@@ -59,7 +62,7 @@ async fn retrieve(
 }
 
 #[rocket::post("/", data = "<user>")]
-async fn create(
+async fn ban_user(
     connection: PgConnection,
     user: Json<NewUser>,
     _token: Token,
@@ -85,7 +88,7 @@ async fn create(
 
 
 #[rocket::delete("/<id>")]
-async fn destroy(connection: PgConnection, id: i32, _token: Token) -> Result<NoContent, NotFound<Json<ApiError>>> {
+async fn unban_user(connection: PgConnection, id: i32, _token: Token) -> Result<NoContent, NotFound<Json<ApiError>>> {
     connection
         .run(move |c| {
             let affected = diesel::delete(users::table.filter(users::id.eq(id)))
