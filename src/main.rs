@@ -2,19 +2,18 @@
 extern crate diesel;
 extern crate dotenv;
 
-use std::env;
+use std::{env, future};
 use std::error::Error;
 use std::fmt::format;
-
+use std::process::Termination;
 use std::sync::atomic::{AtomicU64, Ordering};
-
-
 
 use chrono::prelude::Utc;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use lazy_static::lazy_static;
 use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
+use rocket::futures::executor;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::response::Redirect;
@@ -34,6 +33,8 @@ use tartaros_telegram::{
     models::{NewUser, User},
     PgConnection, schema::users,
 };
+use tartaros_telegram::models::{InputReport, NewReport, Report};
+use tartaros_telegram::schema::reports;
 
 lazy_static! {
     static ref BOT: AutoSend<Bot> = Bot::from_env().auto_send();
@@ -44,57 +45,32 @@ lazy_static! {
 
 
 async fn bot() -> Result<(), Box<dyn Error>> {
-    dotenv().ok();
-
-    println!("aaauwwwuaa");
-
-
-
-
-    println!("aaauoooooooowwwuaa");
-
- let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
-
-/*  let handler =  Update::filter_message().branch(dptree::endpoint(
-        |msg: Message| async move {
-            let previous = 55;
-            BOT.send_message(msg.chat.id, format!("I received {} messages in total.", previous))
-                .await?;
-            respond(())
-        },
-    )); */
-
-    Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
-
-
-    println!("aaaapppppa");
     Ok(())
 }
 
 
 #[rocket::launch]
-async  fn rocket() -> _ {
+async fn rocket() -> _ {
     // pretty_env_logger::init();
     dotenv().ok();
     println!("Hello there!");
     //  log::info!("Starting Teloxide...");
 
 
-
-
     //  log::info!("Starting Rocket...");
 
 
-   tokio::spawn(async {
-    bot().await;
-  });
+    tokio::spawn(async {
+        let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
+
+        Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
+    });
 
 
     println!("aaauuaa");
 
 
-
-    let rock =  rocket::build()
+    let rock = rocket::build()
         .attach(PgConnection::fairing())
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
@@ -105,7 +81,7 @@ async  fn rocket() -> _ {
 
     println!("aaaaa");
 
-     rock
+    rock
 }
 
 #[rocket::get("/")]
@@ -138,44 +114,67 @@ async fn user_by_id(
         })
 }
 
-#[rocket::post("/", data = "<user>")]
+#[rocket::post("/", data = "<report>")]
 async fn report_user(
     connection: PgConnection,
-    user: Json<NewUser>,
+    report: Json<InputReport>,
     _token: Token,
-) -> Result<Created<Json<i32>>, Json<ApiError>> {
-    let keyboard = make_keyboard();
-    BOT.send_message(ChatId(-1001758396624), format!("Report\n\nUser: {}\n\nMessage: {}", user.id, user.msg)).reply_markup(keyboard).await.map(|a| Created::new("/").body(Json(a.id)))
-        .map_err(|e| {
-            Json(ApiError {
-                details: e.to_string(),
-            })
-        })
-
-
-
-    /*
-    connection
-        .run(move |c| unsafe {
-
-
-
-            diesel::insert_into(users::table)
-                .values(User {
-                    id: user.id,
-                    msg: String::from(&user.msg),
+) -> Result<Created<Json<Report>>, Json<ApiError>> {
+   connection
+        .run(move |c|   {
+         let result = diesel::insert_into(reports::table)
+                .values(NewReport {
+                    author: report.author,
                     date: Utc::now().naive_utc(),
+                    user_id: report.user_id,
+                    user_msg: String::from(&report.user_msg),
                 })
-                .get_result(c)
+                .get_result::<Report>(c);
+
+
+
+                let keyboard = InlineKeyboardMarkup::new(vec![vec![
+                    InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
+                ]]);
+
+                BOT.send_message(ChatId(-1001758396624),
+                                 format!("Report {}\n\nUser: {}\n\nMessage: {}",
+                                         result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
+                    .reply_markup(keyboard).wait();
+
+
+
+
+
+
+
+            result
+
         })
         .await
+
         .map(|a| Created::new("/").body(Json(a)))
+
         .map_err(|e| {
             Json(ApiError {
                 details: e.to_string(),
             })
-        }) */
+        })
+
+
 }
+
+trait Block {
+    fn wait(self) -> <Self as future::Future>::Output
+        where Self: Sized, Self: future::Future
+    {
+       executor::block_on(self)
+    }
+}
+
+impl<F,T> Block for F
+    where F: future::Future<Output = T>
+{}
 
 async fn ban_user(connection: PgConnection,
                   user: NewUser, ) -> Result<Created<Json<User>>, Json<ApiError>> {
@@ -250,7 +249,6 @@ impl<'r> FromRequest<'r> for Token {
 }
 
 
-
 async fn callback_handler(
     q: CallbackQuery,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -274,24 +272,4 @@ async fn callback_handler(
     }
 
     Ok(()) //     respond(())
-}
-
-fn make_keyboard() -> InlineKeyboardMarkup {
-    let mut keyboard: Vec<Vec<InlineKeyboardButton>> = vec![];
-
-    let debian_versions = [
-        "Buzz", "Rex", "Bo", "Hamm", "Slink", "Potato", "Woody", "Sarge", "Etch", "Lenny",
-        "Squeeze", "Wheezy", "Jessie", "Stretch", "Buster", "Bullseye",
-    ];
-
-    for versions in debian_versions.chunks(3) {
-        let row = versions
-            .iter()
-            .map(|&version| InlineKeyboardButton::callback(version.to_owned(), version.to_owned()))
-            .collect();
-
-        keyboard.push(row);
-    }
-
-    InlineKeyboardMarkup::new(keyboard)
 }
