@@ -1,21 +1,31 @@
-use rocket::{
-    response::status::{Created, NoContent, NotFound},
-    serde::json::Json,
-};
+#[macro_use]
+extern crate diesel;
+
+use std::convert::Infallible;
+use std::env;
+
+use chrono::prelude::Utc;
 use diesel::prelude::*;
+use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
+use rocket::http::Status;
+//use rocket::outcome::Outcome;
+use rocket::request::{FromRequest, Outcome};
 
 use tartaros_telegram::{
-    models::{User, NewUser},
-    schema::users,
-    ApiError, PgConnection,
+    ApiError,
+    models::{NewUser, User},
+    PgConnection, schema::users,
 };
+use tartaros_telegram::schema::users::{date, id, msg};
+
+//use rocket::route::Outcome;
 
 #[rocket::launch]
 fn rocket() -> _ {
     println!("hello there!");
     rocket::build()
         // State
-               .attach(PgConnection::fairing())
+        .attach(PgConnection::fairing())
         // Routes
         .mount(
             "/users",
@@ -52,11 +62,19 @@ async fn retrieve(
 async fn create(
     connection: PgConnection,
     user: Json<NewUser>,
+    token: Token,
 ) -> Result<Created<Json<User>>, Json<ApiError>> {
+    let newUser = User {
+        id: user.id,
+        msg: user.msg,
+        date: Utc::now().naive_utc(),
+    };
+
+
     connection
         .run(move |c| {
             diesel::insert_into(users::table)
-                .values(&user.into_inner())
+                .values(newUser)
                 .get_result(c)
         })
         .await
@@ -89,4 +107,34 @@ async fn destroy(connection: PgConnection, id: i32) -> Result<NoContent, NotFoun
                 details: e.to_string(),
             }))
         })
+}
+
+struct Token(String);
+
+#[derive(Debug)]
+enum ApiTokenError {
+    Missing,
+    Invalid,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Token {
+    type Error = ApiTokenError;
+
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+        let token = request.headers().get_one("token");
+        match token {
+            Some(token) => {
+                let actual = String::from("banane"); //env::var("HASH").expect("$HASH is not set");
+
+                if actual == token {
+                    return Outcome::Success(Token(token.to_string()));
+                }
+
+
+                return Outcome::Failure((Status::Unauthorized, ApiTokenError::Invalid));
+            }
+            None => return Outcome::Failure((Status::Unauthorized, ApiTokenError::Missing)),
+        };
+    }
 }

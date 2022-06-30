@@ -1,5 +1,5 @@
 use rocket::serde::{Deserialize, Serialize};
-
+use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
 
 use crate::schema::users;
@@ -9,6 +9,7 @@ use crate::schema::users;
 pub struct User {
     pub id: i32,
     pub msg: String,
+    pub date: NaiveDateTime
 }
 
 #[derive(Deserialize, Insertable, Debug)]
@@ -16,5 +17,5 @@ pub struct User {
 #[table_name = "users"]
 pub struct NewUser {
     pub id: i32,
-    pub msg: String,
+    pub msg: String
 }
