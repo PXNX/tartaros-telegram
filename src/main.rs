@@ -3,9 +3,11 @@ extern crate diesel;
 extern crate dotenv;
 
 use std::{env, future};
+use std::borrow::Borrow;
 use std::error::Error;
 use std::fmt::format;
 use std::process::Termination;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::prelude::Utc;
@@ -60,11 +62,6 @@ async fn rocket() -> _ {
     //  log::info!("Starting Rocket...");
 
 
-    tokio::spawn(async {
-        let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
-
-        Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
-    });
 
 
     println!("aaauuaa");
@@ -80,6 +77,13 @@ async fn rocket() -> _ {
     //         .await;
 
     println!("aaaaa");
+
+    tokio::spawn(async {
+        let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
+
+        Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
+    });
+
 
     rock
 }
@@ -176,7 +180,7 @@ impl<F,T> Block for F
     where F: future::Future<Output = T>
 {}
 
-async fn ban_user(connection: PgConnection,
+async fn ban_user(connection: &PgConnection,
                   user: NewUser, ) -> Result<Created<Json<User>>, Json<ApiError>> {
     connection
         .run(move |c| diesel::insert_into(users::table)
@@ -250,26 +254,51 @@ impl<'r> FromRequest<'r> for Token {
 
 
 async fn callback_handler(
+
     q: CallbackQuery,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    if let Some(version) = q.data {
-        let text = format!("You chose: {version}");
+    if let Some(report_id) = q.data {
 
+
+let connection =
+    PgConnection::fairing();
 
         match q.message {
             Some(Message { id, chat, .. }) => {
-                BOT.edit_message_text(chat.id, id, text).await?;
+
+
+                let report = report_by_id(&connection, i32::from_str(&*report_id).unwrap()).await;
+
+
+                ban_user(&connection, NewUser{
+                    id: report.as_ref().unwrap().user_id, msg: String::from(&report.as_ref().unwrap().user_msg)
+                }).await;
+
+
+
+                BOT.edit_message_reply_markup(chat.id, id).await?;
             }
-            None => {
-                if let Some(id) = q.inline_message_id {
-                    BOT.edit_message_text_inline(id, text).await?;
-                }
-            }
+
+            _ => {}
         }
 
-
-        log::info!("You chose: {}", version);
     }
 
     Ok(()) //     respond(())
+}
+
+async fn report_by_id(
+    connection: &PgConnection,
+    id: i32,
+) -> Result<Report, NotFound<Json<ApiError>>> {
+    connection
+        .run(move |c| reports::table.filter(reports::id.eq(id)).first(c))
+        .await
+    
+        .map_err(|e| {
+            NotFound(Json(ApiError {
+                details: e.to_string(),
+            }))
+        })
+
 }
