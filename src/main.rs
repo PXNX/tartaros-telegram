@@ -1,7 +1,9 @@
 #[macro_use]
 extern crate diesel;
 
-use std::convert::Infallible;
+extern crate dotenv;
+
+use dotenv::dotenv;
 use std::env;
 
 use chrono::prelude::Utc;
@@ -19,6 +21,7 @@ use tartaros_telegram::{
 #[rocket::launch]
 fn rocket() -> _ {
     println!("hello there!");
+    dotenv().ok();
     rocket::build()
         // State
         .attach(PgConnection::fairing())
@@ -58,7 +61,7 @@ async fn retrieve(
 async fn create(
     connection: PgConnection,
     user: Json<NewUser>,
-    token: Token,
+    _token: Token,
 ) -> Result<Created<Json<User>>, Json<ApiError>> {
     connection
         .run(move |c| {
@@ -81,7 +84,7 @@ async fn create(
 
 
 #[rocket::delete("/<id>")]
-async fn destroy(connection: PgConnection, id: i32, token: Token) -> Result<NoContent, NotFound<Json<ApiError>>> {
+async fn destroy(connection: PgConnection, id: i32, _token: Token) -> Result<NoContent, NotFound<Json<ApiError>>> {
     connection
         .run(move |c| {
             let affected = diesel::delete(users::table.filter(users::id.eq(id)))
