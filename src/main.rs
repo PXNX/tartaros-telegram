@@ -15,6 +15,7 @@ use diesel::prelude::*;
 use dotenv::dotenv;
 use lazy_static::lazy_static;
 use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
+use rocket::fairing::AdHoc;
 use rocket::futures::executor;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
@@ -38,14 +39,6 @@ use tartaros_telegram::{
 use tartaros_telegram::models::{InputReport, NewReport, Report};
 use tartaros_telegram::schema::reports;
 
-lazy_static! {
-    static ref BOT: AutoSend<Bot> = Bot::from_env().auto_send();
-}
-
-
-
-
-
 async fn bot() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
@@ -62,13 +55,24 @@ async fn rocket() -> _ {
     //  log::info!("Starting Rocket...");
 
 
-
-
-    println!("aaauuaa");
-
+    let bot: AutoSend<Bot> = Bot::from_env().auto_send();
+  //  let mut db: Option<PgConnection> = None;
 
     let rock = rocket::build()
         .attach(PgConnection::fairing())
+
+        .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
+            Box::pin(async move {
+let db = PgConnection::get_one(rocket).wait().unwrap();
+
+                    let handler = Update::filter_callback_query().branch(
+                        dptree::endpoint(move |q, b| callback_handler(q, &db ,   b)));
+
+                    Dispatcher::builder(&bot, handler).build().setup_ctrlc_handler().dispatch().await;
+
+            })
+        }))
+        .manage(bot)
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
@@ -78,11 +82,7 @@ async fn rocket() -> _ {
 
     println!("aaaaa");
 
-    tokio::spawn(async {
-        let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
 
-        Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
-    });
 
 
     rock
@@ -122,11 +122,12 @@ async fn user_by_id(
 async fn report_user(
     connection: PgConnection,
     report: Json<InputReport>,
+    bot: AutoSend<Bot>,
     _token: Token,
 ) -> Result<Created<Json<Report>>, Json<ApiError>> {
-   connection
-        .run(move |c|   {
-         let result = diesel::insert_into(reports::table)
+    connection
+        .run(move |c| {
+            let result = diesel::insert_into(reports::table)
                 .values(NewReport {
                     author: report.author,
                     date: Utc::now().naive_utc(),
@@ -136,24 +137,17 @@ async fn report_user(
                 .get_result::<Report>(c);
 
 
+            let keyboard = InlineKeyboardMarkup::new(vec![vec![
+                InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
+            ]]);
 
-                let keyboard = InlineKeyboardMarkup::new(vec![vec![
-                    InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
-                ]]);
-
-                BOT.send_message(ChatId(-1001758396624),
-                                 format!("Report {}\n\nUser: {}\n\nMessage: {}",
-                                         result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
-                    .reply_markup(keyboard).wait();
-
-
-
-
-
+            bot.send_message(ChatId(-1001758396624),
+                             format!("Report {}\n\nUser: {}\n\nMessage: {}",
+                                     result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
+                .reply_markup(keyboard).wait();
 
 
             result
-
         })
         .await
 
@@ -164,20 +158,18 @@ async fn report_user(
                 details: e.to_string(),
             })
         })
-
-
 }
 
 trait Block {
     fn wait(self) -> <Self as future::Future>::Output
         where Self: Sized, Self: future::Future
     {
-       executor::block_on(self)
+        executor::block_on(self)
     }
 }
 
-impl<F,T> Block for F
-    where F: future::Future<Output = T>
+impl<F, T> Block for F
+    where F: future::Future<Output=T>
 {}
 
 async fn ban_user(connection: &PgConnection,
@@ -254,34 +246,27 @@ impl<'r> FromRequest<'r> for Token {
 
 
 async fn callback_handler(
-
     q: CallbackQuery,
+    connection: &PgConnection,
+    bot: AutoSend<Bot>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(report_id) = q.data {
-
-
-let connection =
-    PgConnection::fairing();
-
         match q.message {
             Some(Message { id, chat, .. }) => {
-
-
                 let report = report_by_id(&connection, i32::from_str(&*report_id).unwrap()).await;
 
 
-                ban_user(&connection, NewUser{
-                    id: report.as_ref().unwrap().user_id, msg: String::from(&report.as_ref().unwrap().user_msg)
+                ban_user(&connection, NewUser {
+                    id: report.as_ref().unwrap().user_id,
+                    msg: String::from(&report.as_ref().unwrap().user_msg),
                 }).await;
 
 
-
-                BOT.edit_message_reply_markup(chat.id, id).await?;
+                bot.edit_message_reply_markup(chat.id, id).await?;
             }
 
             _ => {}
         }
-
     }
 
     Ok(()) //     respond(())
@@ -294,11 +279,10 @@ async fn report_by_id(
     connection
         .run(move |c| reports::table.filter(reports::id.eq(id)).first(c))
         .await
-    
+
         .map_err(|e| {
             NotFound(Json(ApiError {
                 details: e.to_string(),
             }))
         })
-
 }
