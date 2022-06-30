@@ -28,7 +28,7 @@ fn rocket() -> _ {
             "/users",
             rocket::routes![all_users, user_by_id, ban_user, unban_user],
         )
-        .mount("/", redirect_readme)
+        .mount("/", rocket::routes![redirect_readme])
 }
 
 #[rocket::get("/")]
