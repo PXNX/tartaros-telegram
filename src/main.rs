@@ -3,14 +3,27 @@ extern crate diesel;
 extern crate dotenv;
 
 use std::env;
+use std::error::Error;
+use std::fmt::format;
 
 use chrono::prelude::Utc;
 use diesel::prelude::*;
 use dotenv::dotenv;
+use lazy_static::lazy_static;
 use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
 use rocket::http::Status;
-use rocket::response::Redirect;
 use rocket::request::{FromRequest, Outcome};
+use rocket::response::Redirect;
+use teloxide::{
+    dispatching::{
+        dialogue::{self, InMemStorage},
+        UpdateHandler,
+    },
+    prelude::*,
+    types::{InlineKeyboardButton, InlineKeyboardMarkup},
+    utils::command::BotCommands,
+};
+use teloxide::prelude::*;
 
 use tartaros_telegram::{
     ApiError,
@@ -18,17 +31,45 @@ use tartaros_telegram::{
     PgConnection, schema::users,
 };
 
+lazy_static! {
+    static ref BOT: AutoSend<Bot> = Bot::from_env().auto_send();
+}
+
+
 #[rocket::launch]
-fn rocket() -> _ {
-    println!("hello there!");
+async  fn rocket() -> _ {
+    // pretty_env_logger::init();
     dotenv().ok();
-    rocket::build()
+    println!("Hello there!");
+    //  log::info!("Starting Teloxide...");
+
+
+
+
+    //  log::info!("Starting Rocket...");
+
+
+    println!("aaauuaa");
+
+    tokio::spawn(async {
+        let handler = dptree::entry()
+            .branch(Update::filter_callback_query().endpoint(callback_handler));
+
+        Dispatcher::builder(&*BOT, handler).build().setup_ctrlc_handler().dispatch().await;
+
+        println!("aaaapppppa");
+    });
+
+    let rock =  rocket::build()
         .attach(PgConnection::fairing())
-        .mount(
-            "/users",
-            rocket::routes![all_users, user_by_id, ban_user, unban_user],
-        )
         .mount("/", rocket::routes![redirect_readme])
+        .mount("/reports", rocket::routes![report_user])
+        .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]) .launch()
+        .await;
+
+    println!("aaaaa");
+
+     rock
 }
 
 #[rocket::get("/")]
@@ -62,13 +103,27 @@ async fn user_by_id(
 }
 
 #[rocket::post("/", data = "<user>")]
-async fn ban_user(
+async fn report_user(
     connection: PgConnection,
     user: Json<NewUser>,
     _token: Token,
-) -> Result<Created<Json<User>>, Json<ApiError>> {
+) -> Result<Created<Json<i32>>, Json<ApiError>> {
+    let keyboard = make_keyboard();
+    BOT.send_message(ChatId(-1001758396624), format!("Report\n\nUser: {}\n\nMessage: {}", user.id, user.msg)).reply_markup(keyboard).await.map(|a| Created::new("/").body(Json(a.id)))
+        .map_err(|e| {
+            Json(ApiError {
+                details: e.to_string(),
+            })
+        })
+
+
+
+    /*
     connection
-        .run(move |c| {
+        .run(move |c| unsafe {
+
+
+
             diesel::insert_into(users::table)
                 .values(User {
                     id: user.id,
@@ -77,6 +132,26 @@ async fn ban_user(
                 })
                 .get_result(c)
         })
+        .await
+        .map(|a| Created::new("/").body(Json(a)))
+        .map_err(|e| {
+            Json(ApiError {
+                details: e.to_string(),
+            })
+        }) */
+}
+
+async fn ban_user(connection: PgConnection,
+                  user: NewUser, ) -> Result<Created<Json<User>>, Json<ApiError>> {
+    connection
+        .run(move |c| diesel::insert_into(users::table)
+            .values(User {
+                id: user.id,
+                msg: String::from(&user.msg),
+                date: Utc::now().naive_utc(),
+            })
+            .get_result(c)
+        )
         .await
         .map(|a| Created::new("/").body(Json(a)))
         .map_err(|e| {
@@ -136,4 +211,52 @@ impl<'r> FromRequest<'r> for Token {
             None => Outcome::Failure((Status::Unauthorized, ApiTokenError::Missing)),
         };
     }
+}
+
+
+
+async fn callback_handler(
+    q: CallbackQuery,
+    b: AutoSend<Bot>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    if let Some(version) = q.data {
+        let text = format!("You chose: {version}");
+
+
+        match q.message {
+            Some(Message { id, chat, .. }) => {
+                b.edit_message_text(chat.id, id, text).await?;
+            }
+            None => {
+                if let Some(id) = q.inline_message_id {
+                    b.edit_message_text_inline(id, text).await?;
+                }
+            }
+        }
+
+
+        log::info!("You chose: {}", version);
+    }
+
+    Ok(())
+}
+
+fn make_keyboard() -> InlineKeyboardMarkup {
+    let mut keyboard: Vec<Vec<InlineKeyboardButton>> = vec![];
+
+    let debian_versions = [
+        "Buzz", "Rex", "Bo", "Hamm", "Slink", "Potato", "Woody", "Sarge", "Etch", "Lenny",
+        "Squeeze", "Wheezy", "Jessie", "Stretch", "Buster", "Bullseye",
+    ];
+
+    for versions in debian_versions.chunks(3) {
+        let row = versions
+            .iter()
+            .map(|&version| InlineKeyboardButton::callback(version.to_owned(), version.to_owned()))
+            .collect();
+
+        keyboard.push(row);
+    }
+
+    InlineKeyboardMarkup::new(keyboard)
 }

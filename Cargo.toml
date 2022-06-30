@@ -8,6 +8,11 @@ edition = "2021"
 chrono = { version = "0.4", features = ["serde"] }
 diesel = { version = "1.4.7", features = ["chrono"], pool_size = 10 }
 dotenv = "0.7.1"
+teloxide = { version = "0.9", features = ["macros", "auto-send"] }
+log = "0.4"
+pretty_env_logger = "0.4"
+tokio = { version =  "1.8", features = ["rt-multi-thread", "macros"] }
+lazy_static = "1.4.0"
 
 [dependencies.rocket]
 version = "0.5.0-rc.1"
