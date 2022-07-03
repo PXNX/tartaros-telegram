@@ -14,7 +14,7 @@ use chrono::prelude::Utc;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use lazy_static::lazy_static;
-use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json};
+use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
 use rocket::fairing::AdHoc;
 use rocket::futures::executor;
 use rocket::http::Status;
@@ -39,10 +39,15 @@ use tartaros_telegram::{
 use tartaros_telegram::models::{InputReport, NewReport, Report};
 use tartaros_telegram::schema::reports;
 
-async fn bot() -> Result<(), Box<dyn Error>> {
-    Ok(())
+impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
+    type Error = ();
+    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+        match request.real_ip() {
+            Some(bot:Bot) => Outcome::Success(AutoSend(bot)),
+            None => Outcome::Failure((Status::from_code(401).unwrap(), ()))
+        }
+    }
 }
-
 
 #[rocket::launch]
 async fn rocket() -> _ {
@@ -55,37 +60,29 @@ async fn rocket() -> _ {
     //  log::info!("Starting Rocket...");
 
 
+    //  let mut db: Option<PgConnection> = None;
+
     let bot: AutoSend<Bot> = Bot::from_env().auto_send();
-  //  let mut db: Option<PgConnection> = None;
 
-    let rock = rocket::build()
+    let rocket = rocket::build()
+        .manage(bot.clone())
         .attach(PgConnection::fairing())
-
-        .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
-            Box::pin(async move {
-let db = PgConnection::get_one(rocket).wait().unwrap();
-
-                    let handler = Update::filter_callback_query().branch(
-                        dptree::endpoint(move |q, b| callback_handler(q, &db ,   b)));
-
-                    Dispatcher::builder(&bot, handler).build().setup_ctrlc_handler().dispatch().await;
-
-            })
-        }))
-        .manage(bot)
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-    // .launch()
-    //         .await;
+    let db = PgConnection::get_one(&rocket).wait().unwrap();
 
-    println!("aaaaa");
+    let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
 
+    Dispatcher::builder(bot, handler)
+        .dependencies(dptree::deps![db])
+        .build()
+        .setup_ctrlc_handler()
+        .dispatch()
+        .await;
 
-
-
-    rock
+    rocket
 }
 
 #[rocket::get("/")]
