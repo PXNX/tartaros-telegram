@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
+extern crate rocket;
 
 use std::{env, future};
 use std::borrow::Borrow;
@@ -14,12 +15,14 @@ use chrono::prelude::Utc;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use lazy_static::lazy_static;
-use rocket::{Request, request, response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
+use rocket::{response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
 use rocket::fairing::AdHoc;
 use rocket::futures::executor;
 use rocket::http::Status;
-use rocket::request::{FromRequest, Outcome};
+use rocket::request::{self, FromRequest, Request};
+use rocket::request::Outcome;
 use rocket::response::Redirect;
+use serde::Deserialize;
 use teloxide::{
     dispatching::{
         dialogue::{self, InMemStorage},
@@ -39,6 +42,61 @@ use tartaros_telegram::{
 use tartaros_telegram::models::{InputReport, NewReport, Report};
 use tartaros_telegram::schema::reports;
 
+/*
+#[derive(Deserialize)]
+struct Config {
+    api_key: String,
+}
+
+struct ApiKey<'r>(&'r str);
+
+#[derive(Debug)]
+enum ApiKeyError {
+    Missing,
+    Invalid,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for ApiKey<'r> {
+    type Error = ApiKeyError;
+
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+
+        // Retrieve the config state like this
+        let config = req.rocket().state::<Config>().unwrap();
+
+        fn is_valid(key: &str, api_key: &str) -> bool {
+            key == api_key
+        }
+
+        match req.headers().get_one("Authorization") {
+            None => Outcome::Failure((Status::Unauthorized, ApiKeyError::Missing)),
+            Some(key) if is_valid(key, &config.api_key) => Outcome::Success(ApiKey(key)),
+            Some(_) => Outcome::Failure((Status::Unauthorized, ApiKeyError::Invalid)),
+        }
+    }
+}
+
+*/
+
+
+struct MyState {
+    bbot: AutoSend<Bot>,
+}
+
+
+struct Item(AutoSend<Bot>);
+/*
+impl<'a, 'r> FromRequest<'a, 'r> for Item {
+    type Error = ();
+
+    fn from_request(request: &'a Request<'r>) -> request::Outcome<Item, ()> {
+        request.guard::<State<MyState>>()
+            .map(|my_config| Item(my_config.bbot.clone()))
+    }
+}*/
+
+/*
 impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
     type Error = ();
     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
@@ -47,7 +105,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
             None => Outcome::Failure((Status::from_code(401).unwrap(), ()))
         }
     }
-}
+}*/
 
 #[rocket::launch]
 async fn rocket() -> _ {
@@ -64,14 +122,18 @@ async fn rocket() -> _ {
 
     let bot: AutoSend<Bot> = Bot::from_env().auto_send();
 
+    let state = MyState {
+        bbot: bot.clone()
+    };
+
     let rocket = rocket::build()
-        .manage(bot.clone())
+        .manage(state)
         .attach(PgConnection::fairing())
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-    let db = PgConnection::get_one(&rocket).wait().unwrap();
+    let db = PgConnection::get_one(&rocket).await;
 
     let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
 
@@ -119,42 +181,41 @@ async fn user_by_id(
 async fn report_user(
     connection: PgConnection,
     report: Json<InputReport>,
-    bot: AutoSend<Bot>,
-    _token: Token,
+    state: &State<MyState>,
 ) -> Result<Created<Json<Report>>, Json<ApiError>> {
     connection
         .run(move |c| {
-            let result = diesel::insert_into(reports::table)
-                .values(NewReport {
+            diesel::insert_into(reports::table)
+                .values::<NewReport>(NewReport {
                     author: report.author,
                     date: Utc::now().naive_utc(),
                     user_id: report.user_id,
                     user_msg: String::from(&report.user_msg),
                 })
-                .get_result::<Report>(c);
-
-
-            let keyboard = InlineKeyboardMarkup::new(vec![vec![
-                InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
-            ]]);
-
-            bot.send_message(ChatId(-1001758396624),
-                             format!("Report {}\n\nUser: {}\n\nMessage: {}",
-                                     result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
-                .reply_markup(keyboard).wait();
-
-
-            result
+                .get_result::<Report>(c)
         })
         .await
+        .map(|a|  {
+            let keyboard = InlineKeyboardMarkup::new(vec![vec![
+                InlineKeyboardButton::callback("Ban user 🚫", a.id.to_string())
+            ]]);
 
-        .map(|a| Created::new("/").body(Json(a)))
+            state.inner().bbot.send_message(ChatId(-1001758396624),
+                                            format!("Report {}\n\nUser: {}\n\nMessage: {}",
+                                                    a.id, a.user_id, a.user_msg))
+                .reply_markup(keyboard).wait();
 
-        .map_err(|e| {
-            Json(ApiError {
-                details: e.to_string(),
-            })
+           a
         })
+        .map(
+
+        |a|
+    Created::new("/").body(Json(a))
+        )
+        .map_err(|e| Json(ApiError {
+            details: e.to_string(),
+        })
+        )
 }
 
 trait Block {
@@ -244,8 +305,7 @@ impl<'r> FromRequest<'r> for Token {
 
 async fn callback_handler(
     q: CallbackQuery,
-    connection: &PgConnection,
-    bot: AutoSend<Bot>,
+    connection: &PgConnection, bot: AutoSend<Bot>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(report_id) = q.data {
         match q.message {
