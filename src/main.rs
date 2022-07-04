@@ -23,15 +23,10 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::request::Outcome;
 use rocket::response::Redirect;
 use serde::Deserialize;
-use teloxide::{
-    dispatching::{
-        dialogue::{self, InMemStorage},
-        UpdateHandler,
-    },
-    prelude::*,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup},
-    utils::command::BotCommands,
-};
+use teloxide::{dispatching::{
+    dialogue::{self, InMemStorage},
+    UpdateHandler,
+}, prelude::*, RequestError, types::{InlineKeyboardButton, InlineKeyboardMarkup}, utils::command::BotCommands};
 use teloxide::prelude::*;
 
 use tartaros_telegram::{
@@ -149,8 +144,6 @@ async fn rocket() -> _ {
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
 
-
-
     rocket
 }
 
@@ -190,7 +183,7 @@ async fn report_user(
     report: Json<InputReport>,
     state: &State<MyState>,
 ) -> Result<Created<Json<Report>>, Json<ApiError>> {
-    connection
+    let result: QueryResult<Report> = connection
         .run(move |c| {
             diesel::insert_into(reports::table)
                 .values::<NewReport>(NewReport {
@@ -201,28 +194,30 @@ async fn report_user(
                 })
                 .get_result::<Report>(c)
         })
-        .await
-        .map(|a|  {
-            let keyboard = InlineKeyboardMarkup::new(vec![vec![
-                InlineKeyboardButton::callback("Ban user 🚫", a.id.to_string())
-            ]]);
+        .await;
 
-            state.inner().bbot.send_message(ChatId(-1001758396624),
-                                            format!("Report {}\n\nUser: {}\n\nMessage: {}",
-                                                    a.id, a.user_id, a.user_msg))
-                .reply_markup(keyboard).wait();
+   let msg:Result<teloxide::prelude::Message, RequestError> = async {
+        let keyboard = InlineKeyboardMarkup::new(vec![vec![
+            InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
+        ]]);
 
-           a
-        })
-        .map(
+        state.inner().bbot.send_message(ChatId(-1001758396624),
+                                        format!("Report {}\n\nUser: {}\n\nMessage: {}",
+                                                result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
+            .reply_markup(keyboard).await
+    }.await;
 
-        |a|
-    Created::new("/").body(Json(a))
-        )
-        .map_err(|e| Json(ApiError {
-            details: e.to_string(),
-        })
-        )
+   return match msg {
+        Ok(Message) =>  result.map(|a| Created::new("/").body(Json(a)))
+            .map_err(|e| {
+                Json(ApiError {
+                    details: e.to_string(),
+                })
+            }),
+        _ =>  Err(Json(ApiError{
+            details: "aua".to_string()
+        }))
+    };
 }
 
 trait Block {
