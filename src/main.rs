@@ -129,20 +129,27 @@ async fn rocket() -> _ {
     let rocket = rocket::build()
         .manage(state)
         .attach(PgConnection::fairing())
+        .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
+            Box::pin(async move {
+                let db = PgConnection::get_one(rocket).await.unwrap();
+
+
+                let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
+
+                Dispatcher::builder(bot.clone(), handler)
+                    .dependencies(dptree::deps![db])
+                    .build()
+                    .setup_ctrlc_handler()
+                    .dispatch()
+                    .await;
+            })
+        }))
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-    let db = PgConnection::get_one(&rocket).await;
 
-    let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
 
-    Dispatcher::builder(bot, handler)
-        .dependencies(dptree::deps![db])
-        .build()
-        .setup_ctrlc_handler()
-        .dispatch()
-        .await;
 
     rocket
 }
