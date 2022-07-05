@@ -124,22 +124,17 @@ async fn rocket() -> _ {
        .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
             Box::pin(async move {
 
-                println!("Starting Teloxide...");
                 let db = PgConnection::get_one(rocket).await.unwrap();
 
-                println!("Teloxide Handler...");
                 let handler =  dptree::entry()
                     .branch(Update::filter_callback_query().endpoint(callback_handler));
 
-            /*    println!("Teloxide Dispatcher...");
                 Dispatcher::builder(bot, handler)
-                    .dependencies(dptree::deps![db])
+                  //  .dependencies(dptree::deps![db])
                     .build()
                     .setup_ctrlc_handler()
-                    .dispatch() */
-
-              //  println!("Started Teloxide.");
-            } )//.await)
+                    .dispatch().await
+            } )
         }))
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
