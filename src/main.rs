@@ -79,9 +79,9 @@ struct MyState {
     bbot: AutoSend<Bot>,
 }
 
-
-struct Item(AutoSend<Bot>);
 /*
+struct Item(AutoSend<Bot>);
+
 impl<'a, 'r> FromRequest<'a, 'r> for Item {
     type Error = ();
 
@@ -106,13 +106,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
 async fn rocket() -> _ {
     pretty_env_logger::init();
     dotenv().ok();
-    teloxide::enable_logging!();
+
     println!("Hello there!");
-    //  log::info!("Starting Teloxide...");
-
-
-    //  log::info!("Starting Rocket...");
-
 
     //  let mut db: Option<PgConnection> = None;
 
@@ -122,11 +117,14 @@ async fn rocket() -> _ {
         bbot: bot.clone()
     };
 
+    log::info!("Starting Rocket...");
     let rocket = rocket::build()
         .manage(state)
         .attach(PgConnection::fairing())
         .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
             Box::pin(async move {
+
+                log::info!("Starting Teloxide...");
                 let db = PgConnection::get_one(rocket).await.unwrap();
 
 
@@ -138,12 +136,14 @@ async fn rocket() -> _ {
                     .setup_ctrlc_handler()
                     .dispatch()
                     .await;
+                log::info!("Started Teloxide.");
             })
         }))
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
+    log::info!("Started Rocket.");
 
     rocket
 }
