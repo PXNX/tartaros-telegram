@@ -138,16 +138,17 @@ async fn rocket() -> _ {
 */
 
 
-                let handler = Update::filter_message().branch(dptree::endpoint(
-                    |msg: Message, bot: AutoSend<Bot>, db:PgConnection| async move {
+                tokio::spawn(move |db|{
+                    let handler =  dptree::entry()
+                        .branch(Update::filter_callback_query().endpoint(callback_handler));
 
-                        bot.send_message(msg.chat.id, format!("I received {} messages in total.",    String::from( db.type_id())))
-                            .await?;
-                        respond(())
-                    },
-                ));
+                    Dispatcher::builder(bot, handler)
+                        .dependencies(dptree::deps![db])
+                        .build()
+                        .setup_ctrlc_handler()
+                        .dispatch().await;
+                });
 
-                Dispatcher::builder(bot, handler).build().setup_ctrlc_handler().dispatch().await;
             } )
         }))
         .mount("/", rocket::routes![redirect_readme])
@@ -155,6 +156,8 @@ async fn rocket() -> _ {
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
     println!("Started Rocket.");
+
+
 
     rocket
 }
