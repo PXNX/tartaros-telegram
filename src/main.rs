@@ -31,7 +31,7 @@ use teloxide::{dispatching::{
     UpdateHandler,
 }, prelude::*, RequestError, types::{InlineKeyboardButton, InlineKeyboardMarkup}, utils::command::BotCommands};
 use teloxide::prelude::*;
-use tokio::sync::futures;
+use tokio::task::futures;
 
 use tartaros_telegram::{
     ApiError,
