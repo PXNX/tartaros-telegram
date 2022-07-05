@@ -104,8 +104,9 @@ impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
 
 #[rocket::launch]
 async fn rocket() -> _ {
-    // pretty_env_logger::init();
+    pretty_env_logger::init();
     dotenv().ok();
+    teloxide::enable_logging!();
     println!("Hello there!");
     //  log::info!("Starting Teloxide...");
 
