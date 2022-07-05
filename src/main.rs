@@ -121,7 +121,7 @@ async fn rocket() -> _ {
     let rocket = rocket::build()
         .manage(state)
         .attach(PgConnection::fairing())
-        .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
+    /*    .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
             Box::pin(async move {
 
                 println!("Starting Teloxide...");
@@ -138,7 +138,7 @@ async fn rocket() -> _ {
                     .await;
                 println!("Started Teloxide.");
             })
-        }))
+        }))*/
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
