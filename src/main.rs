@@ -117,14 +117,14 @@ async fn rocket() -> _ {
         bbot: bot.clone()
     };
 
-    log::info!("Starting Rocket...");
+    println!("Starting Rocket...");
     let rocket = rocket::build()
         .manage(state)
         .attach(PgConnection::fairing())
         .attach(AdHoc::on_liftoff("Startup Check", |rocket| {
             Box::pin(async move {
 
-                log::info!("Starting Teloxide...");
+                println!("Starting Teloxide...");
                 let db = PgConnection::get_one(rocket).await.unwrap();
 
 
@@ -136,14 +136,14 @@ async fn rocket() -> _ {
                     .setup_ctrlc_handler()
                     .dispatch()
                     .await;
-                log::info!("Started Teloxide.");
+                println!("Started Teloxide.");
             })
         }))
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-    log::info!("Started Rocket.");
+    println!("Started Rocket.");
 
     rocket
 }
