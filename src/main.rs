@@ -141,7 +141,7 @@ async fn rocket() -> _ {
 */
 
 
-    tokio::spawn({
+    tokio::spawn(move || {
 
         let db = PgConnection::get_one(&rocket).await.unwrap();
 
@@ -152,7 +152,7 @@ async fn rocket() -> _ {
             .dependencies(dptree::deps![db])
             .build()
             .setup_ctrlc_handler()
-            .dispatch().await;
+            .dispatch();
     });
 
     rocket
