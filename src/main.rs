@@ -137,9 +137,9 @@ async fn rocket() -> _ {
                     .build()
                     .setup_ctrlc_handler()
                     .dispatch()
-                    .await
+
               //  println!("Started Teloxide.");
-            })
+            }.await)
         }))
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
