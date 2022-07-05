@@ -197,7 +197,7 @@ async fn report_user(
         .await;
 
     match result {
-        OK(res) => {
+        Ok(res) => {
             let keyboard = InlineKeyboardMarkup::new(vec![vec![
                 InlineKeyboardButton::callback("Ban user 🚫", &res.id.to_string())
             ]]);
