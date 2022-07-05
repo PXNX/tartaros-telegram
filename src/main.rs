@@ -130,11 +130,11 @@ async fn main()  {
     let handler = dptree::entry()
         .branch(Update::filter_callback_query().endpoint(callback_handler));
 
-    let b = Dispatcher::builder(bot.clone(), handler)
+    let mut dp =  Dispatcher::builder(bot.clone(), handler)
         .dependencies(dptree::deps![db])
-        .build()
-        .setup_ctrlc_handler()
-        .dispatch();
+        .build();
+    dp.setup_ctrlc_handler();
+    let b = dp.dispatch();
 
 
     let server = async move { rocket.launch().await.ok() };
