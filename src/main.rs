@@ -19,6 +19,7 @@ use lazy_static::lazy_static;
 use rocket::{response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
 use rocket::fairing::AdHoc;
 use rocket::futures::executor;
+use rocket::futures::future::join;
 use rocket::http::hyper::server;
 use rocket::http::Status;
 use rocket::request::{self, FromRequest, Request};
@@ -30,6 +31,8 @@ use teloxide::{dispatching::{
     UpdateHandler,
 }, prelude::*, RequestError, types::{InlineKeyboardButton, InlineKeyboardMarkup}, utils::command::BotCommands};
 use teloxide::prelude::*;
+use tokio::join;
+use tokio::task::futures;
 
 use tartaros_telegram::{
     ApiError,
@@ -104,14 +107,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
     }
 }*/
 
-#[rocket::launch]
-async fn rocket() -> _ {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     pretty_env_logger::init();
     dotenv().ok();
 
     println!("Hello there!");
-
-    //  let mut db: Option<PgConnection> = None;
 
     let bot: AutoSend<Bot> = Bot::from_env().auto_send();
 
@@ -119,7 +120,6 @@ async fn rocket() -> _ {
         bbot: bot.clone()
     };
 
-    println!("Starting Rocket...");
     let rocket = rocket::build()
         .manage(state)
         .attach(PgConnection::fairing())
@@ -127,39 +127,21 @@ async fn rocket() -> _ {
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-    println!("Started Rocket.");
+    let db = PgConnection::get_one(&rocket).await.unwrap();
+
+    let handler = dptree::entry()
+        .branch(Update::filter_callback_query().endpoint(callback_handler));
+
+    let b = Dispatcher::builder(bot.clone(), handler)
+        .dependencies(dptree::deps![db])
+        .build()
+        .setup_ctrlc_handler()
+        .dispatch().await;
 
 
+    let server = async move { rocket.await.launch().await.ok() };
 
-    /*  let handler =  dptree::entry()
-          .branch(Update::filter_callback_query().endpoint(callback_handler));
-
-      Dispatcher::builder(bot, handler)
-         .dependencies(dptree::deps![db])
-          .build()
-          .setup_ctrlc_handler()
-          .dispatch().await;
-*/
-
-
-    tokio::spawn( async || {
-
-        let db = PgConnection::get_one(&rocket).await.unwrap();
-
-        let handler =  dptree::entry()
-            .branch(Update::filter_callback_query().endpoint(callback_handler));
-
-        Dispatcher::builder(bot.clone(), handler)
-            .dependencies(dptree::deps![db])
-            .build()
-            .setup_ctrlc_handler()
-            .dispatch()
-    }.await);
-
-
-
-
-    rocket
+    futures::join(server, b).await
 }
 
 #[rocket::get("/")]
@@ -224,7 +206,7 @@ async fn report_user(
 
 
             return Ok(Created::new("/").body(Json(res)));
-        },
+        }
         Err(e) => return Err(Json(ApiError {
             details: e.to_string()
         }))
@@ -334,7 +316,7 @@ async fn callback_handler(
 
 
                 bot.edit_message_reply_markup(chat.id, id).await?;
-            },
+            }
 
             _ => {}
         }
