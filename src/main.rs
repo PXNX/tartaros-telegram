@@ -131,7 +131,7 @@ async fn rocket() -> _ {
                 let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
 
                 println!("Teloxide Dispatcher...");
-                Dispatcher::builder(bot.clone(), handler)
+                Dispatcher::builder(bot, handler)
                     .dependencies(dptree::deps![db])
                     .build()
                     .setup_ctrlc_handler()
