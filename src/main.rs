@@ -128,7 +128,7 @@ async fn main()  {
 
     let db = PgConnection::get_one(&rocket).await.unwrap();
 
-    let server = async move  { &rocket.launch().await.ok() };
+    let server = async move  { rocket.launch().await.ok() };
 
 
     let handler = dptree::entry()
