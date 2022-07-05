@@ -80,6 +80,7 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
 
 struct MyState {
     bbot: AutoSend<Bot>,
+    dbb: PgConnection
 }
 
 /*
@@ -113,20 +114,20 @@ async fn main()  {
     println!("Hello there!");
 
     let bot: AutoSend<Bot> = Bot::from_env().auto_send();
+    let db = PgConnection::new();
 
     let state = MyState {
-        bbot: bot.clone()
+        bbot: bot.clone(),
+        dbb: db.clone()
     };
 
     let rocket = rocket::build()
         .manage(state)
-        .attach(PgConnection::fairing())
+       // .attach(PgConnection::fairing())
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-
-    let db = PgConnection::get_one(&rocket).await.unwrap();
 
     let server = async move  { rocket.launch().await.ok() };
 
