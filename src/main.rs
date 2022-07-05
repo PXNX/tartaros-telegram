@@ -19,6 +19,7 @@ use lazy_static::lazy_static;
 use rocket::{response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
 use rocket::fairing::AdHoc;
 use rocket::futures::executor;
+use rocket::http::hyper::server;
 use rocket::http::Status;
 use rocket::request::{self, FromRequest, Request};
 use rocket::request::Outcome;
@@ -152,8 +153,11 @@ async fn rocket() -> _ {
             .dependencies(dptree::deps![db])
             .build()
             .setup_ctrlc_handler()
-            .dispatch();
-    });
+            .dispatch()
+    }.await);
+
+
+
 
     rocket
 }
