@@ -192,7 +192,7 @@ async fn report_user(
                     user_id: report.user_id,
                     user_msg: String::from(&report.user_msg),
                 })
-                .get_result::<Report>(c)
+                .get_result::<Report>(c).await
         })
         .await;
 
