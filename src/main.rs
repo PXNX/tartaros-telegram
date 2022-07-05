@@ -194,7 +194,9 @@ async fn report_user(
                 })
                 .get_result::<Report>(c)
         })
-        .await.map_err(|e| Json(ApiError {
+        .await;
+
+    result.map_err(|e| Json(ApiError {
         details: e.to_string()
     }));
 
