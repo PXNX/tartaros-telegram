@@ -138,7 +138,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let server = async move { rocket.launch().await.ok() };
 
-    futures::join(server, b).await
+    futures::join!(server, b).await
 }
 
 #[rocket::get("/")]
