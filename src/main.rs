@@ -196,23 +196,24 @@ async fn report_user(
         })
         .await;
 
-    result.as_ref().map_err(|e| Json(ApiError {
-        details: e.to_string()
-    }));
+    match result {
+        OK(res) => {
+            let keyboard = InlineKeyboardMarkup::new(vec![vec![
+                InlineKeyboardButton::callback("Ban user 🚫", &res.id.to_string())
+            ]]);
 
-    let keyboard = InlineKeyboardMarkup::new(vec![vec![
-        InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
-    ]]);
-
-    state.inner().bbot.send_message(ChatId(-1001758396624),
-                                    format!("Report {}\n\nUser: {}\n\nMessage: {}",
-                                            result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
-        .reply_markup(keyboard).await.map_err(|e| Json(ApiError {
-        details: e.to_string()
-    }))?;
+            state.inner().bbot.send_message(ChatId(-1001758396624),
+                                            format!("Report {}\n\nUser: {}\n\nMessage: {}",
+                                                    &res.id, &result.user_id, &res.user_msg))
+                .reply_markup(keyboard).await.expect("Failed to send message");
 
 
-    Ok(Created::new("/").body(Json(result.unwrap())))
+            return Ok(Created::new("/").body(Json(result.unwrap())));
+        },
+        Err(e) => return Err(Json(ApiError {
+            details: e.to_string()
+        }))
+    }
 }
 
 trait Block {
