@@ -139,7 +139,7 @@ async fn main()  {
 
     let server = async move { rocket.launch().await.ok() };
 
-    join(server, b).await;
+   let (_,_) = join(server, b).await;
 }
 
 #[rocket::get("/")]
