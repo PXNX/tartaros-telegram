@@ -16,7 +16,7 @@ use chrono::prelude::Utc;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use lazy_static::lazy_static;
-use rocket::{response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
+use rocket::{futures, response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
 use rocket::fairing::AdHoc;
 use rocket::futures::executor;
 use rocket::futures::future::join;
@@ -31,7 +31,6 @@ use teloxide::{dispatching::{
     UpdateHandler,
 }, prelude::*, RequestError, types::{InlineKeyboardButton, InlineKeyboardMarkup}, utils::command::BotCommands};
 use teloxide::prelude::*;
-use tokio::task::futures;
 
 use tartaros_telegram::{
     ApiError,
