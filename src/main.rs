@@ -139,7 +139,7 @@ async fn rocket() -> _ {
                     .dispatch() */
 
               //  println!("Started Teloxide.");
-            }.await)
+            } )//.await)
         }))
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
