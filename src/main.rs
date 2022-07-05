@@ -31,8 +31,7 @@ use teloxide::{dispatching::{
     UpdateHandler,
 }, prelude::*, RequestError, types::{InlineKeyboardButton, InlineKeyboardMarkup}, utils::command::BotCommands};
 use teloxide::prelude::*;
-use tokio::join;
-use tokio::task::futures;
+use tokio::sync::futures;
 
 use tartaros_telegram::{
     ApiError,
@@ -141,7 +140,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let server = async move { rocket.launch().await.ok() };
 
-    futures::join(server, b).await
+    futures::join!(server, b).await
 }
 
 #[rocket::get("/")]
@@ -193,7 +192,7 @@ async fn report_user(
         })
         .await;
 
-    match result {
+    return match result {
         Ok(res) => {
             let keyboard = InlineKeyboardMarkup::new(vec![vec![
                 InlineKeyboardButton::callback("Ban user 🚫", &res.id.to_string())
@@ -205,9 +204,9 @@ async fn report_user(
                 .reply_markup(keyboard).await.expect("Failed to send message");
 
 
-            return Ok(Created::new("/").body(Json(res)));
+            Ok(Created::new("/").body(Json(res)))
         }
-        Err(e) => return Err(Json(ApiError {
+        Err(e) => Err(Json(ApiError {
             details: e.to_string()
         }))
     }
