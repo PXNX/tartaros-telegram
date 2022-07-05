@@ -133,7 +133,7 @@ async fn rocket() -> _ {
                   //  .dependencies(dptree::deps![db])
                     .build()
                     .setup_ctrlc_handler()
-                    .dispatch().await
+                    .dispatch().await;
             } )
         }))
         .mount("/", rocket::routes![redirect_readme])
