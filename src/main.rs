@@ -125,9 +125,11 @@ async fn main()  {
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-    let server = async  { &rocket.launch().await.ok() };
 
     let db = PgConnection::get_one(&rocket).await.unwrap();
+
+    let server = async move  { &rocket.launch().await.ok() };
+
 
     let handler = dptree::entry()
         .branch(Update::filter_callback_query().endpoint(callback_handler));
