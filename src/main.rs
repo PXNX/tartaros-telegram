@@ -141,7 +141,7 @@ async fn rocket() -> _ {
 */
 
 
-    tokio::spawn(move || {
+    tokio::spawn( async || {
 
         let db = PgConnection::get_one(&rocket).await.unwrap();
 
