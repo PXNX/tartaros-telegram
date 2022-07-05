@@ -125,6 +125,8 @@ async fn main()  {
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
+    let server = async move { rocket.launch().await.ok() };
+
     let db = PgConnection::get_one(&rocket).await.unwrap();
 
     let handler = dptree::entry()
@@ -135,9 +137,6 @@ async fn main()  {
         .build();
     dp.setup_ctrlc_handler();
     let b = dp.dispatch();
-
-
-    let server = async move { rocket.launch().await.ok() };
 
    let (_,_) = join(server, b).await;
 }
