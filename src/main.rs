@@ -196,7 +196,7 @@ async fn report_user(
         })
         .await;
 
-    result.map_err(|e| Json(ApiError {
+    result.as_ref().map_err(|e| Json(ApiError {
         details: e.to_string()
     }));
 
