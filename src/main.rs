@@ -3,8 +3,8 @@ extern crate diesel;
 extern crate dotenv;
 extern crate rocket;
 extern crate diesel;
-extern crate r2d2;
-extern crate r2d2_diesel;
+//extern crate r2d2;
+//extern crate r2d2_diesel;
 
 
 use std::{env, future};
@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::prelude::Utc;
 use diesel::prelude::*;
-use diesel::r2d2::ConnectionManager;
+//use diesel::r2d2::ConnectionManager;
 use dotenv::dotenv;
 use lazy_static::lazy_static;
 use rocket::{ response::status::{Created, NoContent, NotFound}, serde::json::Json, State};

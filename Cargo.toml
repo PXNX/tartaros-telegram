@@ -15,7 +15,7 @@ tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 lazy_static = "1.4.0"
 serde = "1.0.138"
 futures = "0.3.5"
-r2d2  = { version="0.8.10", features = ["diesel","postgres"]}
+#r2d2  = { version="0.8.10", features = ["diesel","postgres"]}
 
 [dependencies.rocket]
 version = "0.5.0-rc.1"
