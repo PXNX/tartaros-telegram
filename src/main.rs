@@ -25,6 +25,7 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::request::Outcome;
 use rocket::response::Redirect;
 use serde::Deserialize;
+use futures::future::join;
 use teloxide::{dispatching::{
     dialogue::{self, InMemStorage},
     UpdateHandler,
@@ -138,7 +139,7 @@ async fn main()  {
 
     let server = async move { rocket.launch().await.ok() };
 
-    let (_,_) = tokio::join!(server, b);
+    join(server, b).await;
 }
 
 #[rocket::get("/")]
