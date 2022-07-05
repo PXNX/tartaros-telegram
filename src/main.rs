@@ -4,6 +4,7 @@ extern crate dotenv;
 extern crate rocket;
 
 use std::{env, future};
+use std::any::Any;
 use std::borrow::Borrow;
 use std::error::Error;
 use std::fmt::format;
@@ -126,14 +127,27 @@ async fn rocket() -> _ {
 
                 let db = PgConnection::get_one(rocket).await.unwrap();
 
-                let handler =  dptree::entry()
+              /*  let handler =  dptree::entry()
                     .branch(Update::filter_callback_query().endpoint(callback_handler));
 
                 Dispatcher::builder(bot, handler)
-                  //  .dependencies(dptree::deps![db])
+                   .dependencies(dptree::deps![db])
                     .build()
                     .setup_ctrlc_handler()
                     .dispatch().await;
+*/
+
+
+                let handler = Update::filter_message().branch(dptree::endpoint(
+                    |msg: Message, bot: AutoSend<Bot>, db:PgConnection| async move {
+
+                        bot.send_message(msg.chat.id, format!("I received {} messages in total.",    String::from( db.type_id())))
+                            .await?;
+                        respond(())
+                    },
+                ));
+
+                Dispatcher::builder(bot, handler).build().setup_ctrlc_handler().dispatch().await;
             } )
         }))
         .mount("/", rocket::routes![redirect_readme])
@@ -301,7 +315,8 @@ impl<'r> FromRequest<'r> for Token {
 
 async fn callback_handler(
     q: CallbackQuery,
-    connection: &PgConnection, bot: AutoSend<Bot>,
+    bot: AutoSend<Bot>,
+    connection: &PgConnection,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(report_id) = q.data {
         match q.message {
@@ -316,7 +331,7 @@ async fn callback_handler(
 
 
                 bot.edit_message_reply_markup(chat.id, id).await?;
-            }
+            },
 
             _ => {}
         }
