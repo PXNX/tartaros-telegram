@@ -194,30 +194,23 @@ async fn report_user(
                 })
                 .get_result::<Report>(c).await
         })
-        .await;
+        .await.map_err(|e| Json(ApiError {
+        details: e.to_string()
+    }));
 
-   let msg:Result<teloxide::prelude::Message, RequestError> = async {
-        let keyboard = InlineKeyboardMarkup::new(vec![vec![
-            InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
-        ]]);
+    let keyboard = InlineKeyboardMarkup::new(vec![vec![
+        InlineKeyboardButton::callback("Ban user 🚫", result.as_ref().unwrap().id.to_string())
+    ]]);
 
-        state.inner().bbot.send_message(ChatId(-1001758396624),
-                                        format!("Report {}\n\nUser: {}\n\nMessage: {}",
-                                                result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
-            .reply_markup(keyboard).await
-    }.await;
+    state.inner().bbot.send_message(ChatId(-1001758396624),
+                                    format!("Report {}\n\nUser: {}\n\nMessage: {}",
+                                            result.as_ref().unwrap().id, result.as_ref().unwrap().user_id, result.as_ref().unwrap().user_msg))
+        .reply_markup(keyboard).await.map_err(|e| Json(ApiError {
+        details: e.to_string()
+    }))?;
 
-   return match msg {
-        Ok(Message) =>  result.map(|a| Created::new("/").body(Json(a)))
-            .map_err(|e| {
-                Json(ApiError {
-                    details: e.to_string(),
-                })
-            }),
-        _ =>  Err(Json(ApiError{
-            details: "aua".to_string()
-        }))
-    };
+
+    Ok(Created::new("/").body(Json(result.unwrap())))
 }
 
 trait Block {

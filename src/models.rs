@@ -2,8 +2,8 @@ use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
 use rocket::serde::{Deserialize, Serialize};
 
-use crate::schema::users;
 use crate::schema::reports;
+use crate::schema::users;
 
 #[derive(Serialize, Queryable, Insertable, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -31,7 +31,7 @@ pub struct Report {
 }
 
 #[derive(Insertable, Debug)]
-#[table_name="reports"]
+#[table_name = "reports"]
 pub struct NewReport {
     pub author: i32,
     pub date: NaiveDateTime,

@@ -11,7 +11,7 @@ dotenv = "0.7.1"
 teloxide = { version = "0.9.2", features = ["macros", "auto-send"] }
 log = "0.4"
 pretty_env_logger = "0.4"
-tokio = { version =  "1.8", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 lazy_static = "1.4.0"
 serde = "1.0.138"
 
