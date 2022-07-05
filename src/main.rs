@@ -204,11 +204,11 @@ async fn report_user(
 
             state.inner().bbot.send_message(ChatId(-1001758396624),
                                             format!("Report {}\n\nUser: {}\n\nMessage: {}",
-                                                    &res.id, &result.user_id, &res.user_msg))
+                                                    &res.id, &res.user_id, &res.user_msg))
                 .reply_markup(keyboard).await.expect("Failed to send message");
 
 
-            return Ok(Created::new("/").body(Json(result.unwrap())));
+            return Ok(Created::new("/").body(Json(res)));
         },
         Err(e) => return Err(Json(ApiError {
             details: e.to_string()
