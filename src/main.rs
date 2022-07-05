@@ -128,7 +128,8 @@ async fn rocket() -> _ {
                 let db = PgConnection::get_one(rocket).await.unwrap();
 
                 println!("Teloxide Handler...");
-                let handler = Update::filter_callback_query().branch(dptree::endpoint(callback_handler));
+                let handler =  dptree::entry()
+                    .branch(Update::filter_callback_query().endpoint(callback_handler));
 
                 println!("Teloxide Dispatcher...");
                 Dispatcher::builder(bot, handler)
