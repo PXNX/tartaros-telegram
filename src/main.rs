@@ -2,6 +2,10 @@
 extern crate diesel;
 extern crate dotenv;
 extern crate rocket;
+extern crate diesel;
+extern crate r2d2;
+extern crate r2d2_diesel;
+
 
 use std::{env, future};
 use std::any::Any;
@@ -14,6 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::prelude::Utc;
 use diesel::prelude::*;
+use diesel::r2d2::ConnectionManager;
 use dotenv::dotenv;
 use lazy_static::lazy_static;
 use rocket::{ response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
@@ -80,7 +85,7 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
 
 struct MyState {
     bbot: AutoSend<Bot>,
-    dbb: PgConnection
+  //  dbb: PgConnection
 }
 
 /*
@@ -114,16 +119,20 @@ async fn main()  {
     println!("Hello there!");
 
     let bot: AutoSend<Bot> = Bot::from_env().auto_send();
-    let db = PgConnection::new();
+
+ //   let manager = ConnectionManager::<PgConnection>::new(env::var("DATABASE_URL").expect("yee"));
+ //   let pool = r2d2::Pool::builder().build(manager).expect("Failed to create pool.");
+
+
 
     let state = MyState {
         bbot: bot.clone(),
-        dbb: db.clone()
+     //   dbb: db.clone()
     };
 
     let rocket = rocket::build()
         .manage(state)
-       // .attach(PgConnection::fairing())
+        .attach(PgConnection::fairing())
         .mount("/", rocket::routes![redirect_readme])
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
@@ -131,6 +140,7 @@ async fn main()  {
 
     let server = async move  { rocket.launch().await.ok() };
 
+    let db = PgConnection.get().await;
 
     let handler = dptree::entry()
         .branch(Update::filter_callback_query().endpoint(callback_handler));

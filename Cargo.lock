@@ -1836,6 +1836,7 @@ dependencies = [
  "lazy_static",
  "log",
  "pretty_env_logger",
+ "r2d2",
  "rocket",
  "rocket_sync_db_pools",
  "serde",
