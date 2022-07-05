@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .dependencies(dptree::deps![db])
         .build()
         .setup_ctrlc_handler()
-        .dispatch().await;
+        .dispatch();
 
 
     let server = async move { rocket.launch().await.ok() };
