@@ -105,7 +105,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
 }*/
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main()  {
     pretty_env_logger::init();
     dotenv().ok();
 
