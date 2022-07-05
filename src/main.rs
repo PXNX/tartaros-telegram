@@ -131,12 +131,12 @@ async fn rocket() -> _ {
                 let handler =  dptree::entry()
                     .branch(Update::filter_callback_query().endpoint(callback_handler));
 
-                println!("Teloxide Dispatcher...");
+            /*    println!("Teloxide Dispatcher...");
                 Dispatcher::builder(bot, handler)
                     .dependencies(dptree::deps![db])
                     .build()
                     .setup_ctrlc_handler()
-                    .dispatch()
+                    .dispatch() */
 
               //  println!("Started Teloxide.");
             }.await)
