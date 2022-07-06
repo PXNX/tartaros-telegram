@@ -2,7 +2,6 @@
 extern crate diesel;
 extern crate dotenv;
 extern crate rocket;
-extern crate diesel;
 //extern crate r2d2;
 //extern crate r2d2_diesel;
 
@@ -20,8 +19,9 @@ use chrono::prelude::Utc;
 use diesel::prelude::*;
 //use diesel::r2d2::ConnectionManager;
 use dotenv::dotenv;
+use futures::future::join;
 use lazy_static::lazy_static;
-use rocket::{ response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
+use rocket::{response::status::{Created, NoContent, NotFound}, serde::json::Json, State};
 use rocket::fairing::AdHoc;
 use rocket::futures::executor;
 use rocket::http::hyper::server;
@@ -30,7 +30,6 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::request::Outcome;
 use rocket::response::Redirect;
 use serde::Deserialize;
-use futures::future::join;
 use teloxide::{dispatching::{
     dialogue::{self, InMemStorage},
     UpdateHandler,
@@ -85,7 +84,7 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
 
 struct MyState {
     bbot: AutoSend<Bot>,
-  //  dbb: PgConnection
+    //  dbb: PgConnection
 }
 
 /*
@@ -112,7 +111,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AutoSend<Bot> {
 }*/
 
 #[tokio::main]
-async fn main()  {
+async fn main() {
     pretty_env_logger::init();
     dotenv().ok();
 
@@ -120,14 +119,13 @@ async fn main()  {
 
     let bot: AutoSend<Bot> = Bot::from_env().auto_send();
 
- //   let manager = ConnectionManager::<PgConnection>::new(env::var("DATABASE_URL").expect("yee"));
- //   let pool = r2d2::Pool::builder().build(manager).expect("Failed to create pool.");
-
+    //   let manager = ConnectionManager::<PgConnection>::new(env::var("DATABASE_URL").expect("yee"));
+    //   let pool = r2d2::Pool::builder().build(manager).expect("Failed to create pool.");
 
 
     let state = MyState {
         bbot: bot.clone(),
-     //   dbb: db.clone()
+        //   dbb: db.clone()
     };
 
     let rocket = rocket::build()
@@ -140,23 +138,24 @@ async fn main()  {
 
     let yeet;
 
-    let server = async move  {
-        let hm =        rocket.launch().await.ok();
-    yeet = rocket;
-    hm};
+    let server = async move {
+        let hm = rocket.launch().await.ok();
+        yeet = rocket;
+        hm
+    };
 
     let db = PgConnection::get_one(&yeet).await;
 
     let handler = dptree::entry()
         .branch(Update::filter_callback_query().endpoint(callback_handler));
 
-    let mut dp =  Dispatcher::builder(bot.clone(), handler)
+    let mut dp = Dispatcher::builder(bot.clone(), handler)
         .dependencies(dptree::deps![db])
         .build();
     dp.setup_ctrlc_handler();
     let b = dp.dispatch();
 
-   let (_,_) = join(server, b).await;
+    let (_, _) = join(server, b).await;
 }
 
 #[rocket::get("/")]
@@ -225,7 +224,7 @@ async fn report_user(
         Err(e) => Err(Json(ApiError {
             details: e.to_string()
         }))
-    }
+    };
 }
 
 trait Block {
