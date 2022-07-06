@@ -145,7 +145,7 @@ async fn main()  {
     yeet = rocket;
     hm};
 
-    let db = PgConnection.get_one(&yeet).await;
+    let db = PgConnection::get_one(&yeet).await;
 
     let handler = dptree::entry()
         .branch(Update::filter_callback_query().endpoint(callback_handler));
