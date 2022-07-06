@@ -137,12 +137,15 @@ async fn main()  {
         .mount("/reports", rocket::routes![report_user])
         .mount("/users", rocket::routes![all_users, user_by_id,  unban_user]);
 
-    let rr = rocket.clone();
-    let rr2 = rocket.copy();
 
-    let server = async move  { rocket.launch().await.ok() };
+    let yeet;
 
-    let db = PgConnection.get_one(&rocket).await;
+    let server = async move  {
+        let hm =        rocket.launch().await.ok();
+    yeet = rocket;
+    hm};
+
+    let db = PgConnection.get_one(&yeet).await;
 
     let handler = dptree::entry()
         .branch(Update::filter_callback_query().endpoint(callback_handler));
