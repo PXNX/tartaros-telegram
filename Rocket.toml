@@ -1,3 +1,0 @@
-[global.databases.db]
-url = "postgres://rieiytpqivswin:86bd6d3c60ec2b8b8cc58c706569f2664206ec0a3a713a2d147380b44cef9432@ec2-34-241-90-235.eu-west-1.compute.amazonaws.com:5432/d2d7gmltt0l9ti"
-pool_size = 10

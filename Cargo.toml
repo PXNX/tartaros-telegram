@@ -5,23 +5,12 @@ authors = ["nyx69"]
 edition = "2021"
 
 [dependencies]
-chrono = { version = "0.4", features = ["serde"] }
-diesel = { version = "1.4.7", features = ["chrono"], pool_size = 10 }
-dotenv = "0.7.1"
-teloxide = { version = "0.9.2", features = ["macros", "auto-send"] }
-log = "0.4"
+sqlx = { version = "0.6.0", default-features = false, features = ["runtime-tokio-rustls", "macros", "chrono", "postgres"] }
+dotenv = "0.15.0"
+axum = { version = "0.5", features = ["headers", ] }
 pretty_env_logger = "0.4"
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
-lazy_static = "1.4.0"
-serde = "1.0.138"
-futures = "0.3.5"
-#r2d2  = { version="0.8.10", features = ["diesel","postgres"]}
-
-[dependencies.rocket]
-version = "0.5.0-rc.1"
-features = ["json"]
-
-[dependencies.rocket_sync_db_pools]
-version = "0.1.0-rc.1"
-features = ["diesel_postgres_pool"]
-default-features = false
+serde = { version = "1.0.137", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4.17"
+axum-sqlx-tx = { version = "0.3.0", features = ["runtime-tokio-rustls", "postgres"] }
