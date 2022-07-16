@@ -1,13 +1,15 @@
 use std::env;
 use std::net::SocketAddr;
 
-use axum::{Json, Router};
+use axum::{Extension, Json, Router};
+use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect};
 use axum::routing::{get, post};
-use axum_sqlx_tx::Tx;
+use axum_sqlx_tx::Layer;
+//use axum_sqlx_tx::{Layer, Tx};
 use dotenv::dotenv;
-use sqlx::{Pool, Postgres, postgres::PgPoolOptions, query, query_as};
+use sqlx::{PgPool, Pool, Postgres, postgres::PgPoolOptions, query, query_as};
 
 use crate::models::{ApiError, InputReport, Report};
 
@@ -16,26 +18,27 @@ mod models;
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+   // pretty_env_logger::init();
     dotenv().ok();
 
     println!("Hello there!");
 
    let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&*env::var("DATABASE_URL").expect("DATABASE_URL must be provided!")).await?;
+        .connect(&*env::var("DATABASE_URL").expect("DATABASE_URL must be provided!")).await.unwrap();
 
 // failed to resolve: could not find `PostgresPool` in `sqlx`
    // let pool = sqlx::PostgresPool::connect(&*env::var("DATABASE_URL").expect("DATABASE_URL must be provided!")).await?;
 
     let app = Router::new()
-        .layer(axum_sqlx_tx::Layer::<Postgres>::new(pool))
-        .route("/", get(redirect_readme)
-            .route("/reports", post(report_user))
-            .route("/users/:user_id", get(user_by_id)),
-        );
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+        // .layer(axum_sqlx_tx::Layer::<Postgres>::new(pool))
+        .route("/", get(redirect_readme))
+            .route("/reports", post(report_user))
+            .route("/users/:user_id", get(user_by_id))
+        .layer(Extension(pool));
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
@@ -48,10 +51,10 @@ async fn redirect_readme() -> Redirect {
 
 
 async fn user_by_id(
-    mut tx: Tx<Postgres>,
-    id: i64,
+    Extension(pool): Extension<Pool<Postgres>>,
+    Path(user_id): Path<i64>,
 ) -> Result<Json<Report>, (StatusCode, Json<ApiError>)> {
-    query_as!(Report, r#"Select * from reports where user_id = $1 and is_banned=true"#, id).fetch_one(tx)
+    query_as!(Report, r#"Select * from reports where user_id = $1 and is_banned=true"#, user_id).fetch_one(&pool)
         .await
         .map(Json)
         .map_err(|e|
@@ -62,10 +65,10 @@ async fn user_by_id(
 }
 
 async fn report_user(
-    mut tx: Tx<Postgres>,
+    Extension(pool):  Extension<Pool<Postgres>>,
     report: Json<InputReport>,
 ) -> Result<(StatusCode, Json<Report>), Json<ApiError>> {
-    let result = sqlx::query_as!(Report, r#"Insert into reports (user_id, account_id, message) values ($1, $2, $3) returning *"#, report.user_id, 123, report.message).execute(tx)
+    let result = sqlx::query_as!(Report, r#"Insert into reports (user_id, account_id, message) values ($1, $2, $3) returning *"#, report.user_id, 1, report.message).fetch_one(&pool)
         .await;
 
     return match result {
